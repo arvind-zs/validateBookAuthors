@@ -1,4 +1,4 @@
-package AuthorArvind
+package main
 
 import (
 	"database/sql"
@@ -29,12 +29,12 @@ type Author struct {
 	PenName   string `json:"pen_name"`
 }
 
-func dbConn() (db *sql.DB) {
-	dbDriver := "mysql"
-	dbUser := "root"
-	dbPass := "Dpyadav@123"
-	dbName := "Test"
-	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(127.0.0.1:3306)/"+dbName)
+func databaseConnection() (db *sql.DB) {
+	databaseDriver := "mysql"
+	databaseUser := "root"
+	databasePass := "Dpyadav@123"
+	databaseName := "Test"
+	db, err := sql.Open(databaseDriver, databaseUser+":"+databasePass+"@tcp(127.0.0.1:3306)/"+databaseName)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -42,7 +42,7 @@ func dbConn() (db *sql.DB) {
 }
 
 func getBook(response http.ResponseWriter, request *http.Request) {
-	db := dbConn()
+	db := databaseConnection()
 	defer db.Close()
 	title := request.URL.Query().Get("title")
 	includeAuthor := request.URL.Query().Get("includeAuthor")
@@ -70,6 +70,7 @@ func getBook(response http.ResponseWriter, request *http.Request) {
 		books = append(books, book)
 	}
 	json.NewEncoder(response).Encode(books)
+
 }
 
 func getBookById(response http.ResponseWriter, request *http.Request) {
@@ -82,10 +83,10 @@ func getBookById(response http.ResponseWriter, request *http.Request) {
 		json.NewEncoder(response).Encode(Book{})
 		return
 	}
-	db := dbConn()
+	db := databaseConnection()
 	defer db.Close()
 	bookrow := db.QueryRow("select * from Books where id=?;", id)
-	book := Book{}
+	var book Book
 	err = bookrow.Scan(&book.Id, &book.Title, &book.Author.Id, &book.Publication, &book.PublishedDate)
 	if err != nil {
 		log.Print(err)
@@ -101,10 +102,20 @@ func getBookById(response http.ResponseWriter, request *http.Request) {
 		log.Print(err)
 	}
 	json.NewEncoder(response).Encode(book)
+	/*
+		data, err := json.Marshal(book)
+		if err != nil {
+			response.WriteHeader(http.StatusBadRequest)
+			//response.Write([]byte(`error while unmarshalling`))
+		}
+		response.Write(data)
+
+	*/
+
 }
 
 func postBook(response http.ResponseWriter, request *http.Request) {
-	db := dbConn()
+	db := databaseConnection()
 	defer db.Close()
 	decoder := json.NewDecoder(request.Body)
 	b := Book{}
@@ -114,15 +125,16 @@ func postBook(response http.ResponseWriter, request *http.Request) {
 		json.NewEncoder(response).Encode(Book{})
 		return
 	}
-	BookId := 0
+	var BookId int
 	err = db.QueryRow("select id from Books where title=? and author_id=?;", b.Title, b.Author.Id).Scan(&BookId)
 	if err == nil {
 		response.WriteHeader(400)
 		json.NewEncoder(response).Encode(Book{})
 		return
 	}
+
 	authorRow := db.QueryRow("select id from Authors where id=?;", b.Author.Id)
-	authorId := 0
+	var authorId int
 	err = authorRow.Scan(&authorId)
 	if err != nil {
 		log.Print(err)
@@ -158,11 +170,12 @@ func postBook(response http.ResponseWriter, request *http.Request) {
 }
 
 func postAuthor(response http.ResponseWriter, request *http.Request) {
-	db := dbConn()
+	db := databaseConnection()
 	defer db.Close()
 	decoder := json.NewDecoder(request.Body)
 	a := Author{}
 	err := decoder.Decode(&a)
+	fmt.Println(a)
 	if a.FirstName == "" || a.Dob == "" {
 		response.WriteHeader(400)
 		json.NewEncoder(response).Encode(Author{})
@@ -197,7 +210,7 @@ func putBook(response http.ResponseWriter, request *http.Request) {
 }
 
 func deleteAuthor(response http.ResponseWriter, request *http.Request) {
-	db := dbConn()
+	db := databaseConnection()
 	defer db.Close()
 	id, err := strconv.Atoi(mux.Vars(request)["id"])
 
@@ -217,7 +230,7 @@ func deleteAuthor(response http.ResponseWriter, request *http.Request) {
 }
 
 func deleteBook(response http.ResponseWriter, request *http.Request) {
-	db := dbConn()
+	db := databaseConnection()
 	defer db.Close()
 	id, err := strconv.Atoi(mux.Vars(request)["id"])
 
@@ -239,29 +252,33 @@ func deleteBook(response http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
+
 	r := mux.NewRouter()
 
-	r.HandleFunc("http://localhost:8000/book", getBook).Methods(http.MethodGet)
+	r.HandleFunc("/book", getBook).Methods(http.MethodGet)
 
-	r.HandleFunc("http://localhost:8000/book/{id}", getBookById).Methods(http.MethodGet)
+	r.HandleFunc("/book/{id}", getBookById).Methods(http.MethodGet)
 
-	r.HandleFunc("http://localhost:8000/book", postBook).Methods(http.MethodPost)
+	r.HandleFunc("/book", postBook).Methods(http.MethodPost)
 
-	r.HandleFunc("http://localhost:8000/author", postAuthor).Methods(http.MethodPost)
+	r.HandleFunc("/author", postAuthor).Methods(http.MethodPost)
 
-	r.HandleFunc("http://localhost:8000/book/{id}", putBook).Methods(http.MethodPut)
+	r.HandleFunc("/book/{id}", putBook).Methods(http.MethodPut)
 
-	r.HandleFunc("http://localhost:8000/author/{id}", putAuthor).Methods(http.MethodPut)
+	r.HandleFunc("/author/{id}", putAuthor).Methods(http.MethodPut)
 
-	r.HandleFunc("http://localhost:8000/book/{id}", deleteBook).Methods(http.MethodDelete)
+	r.HandleFunc("/book/{id}", deleteBook).Methods(http.MethodDelete)
 
-	r.HandleFunc("http://localhost:8000/author/{id}", deleteAuthor).Methods(http.MethodDelete)
+	r.HandleFunc("/author/{id}", deleteAuthor).Methods(http.MethodDelete)
 
-	Server := http.Server{
+	server := http.Server{
 		Addr:    ":8000",
 		Handler: r,
 	}
 
 	fmt.Println("Server started at 8000")
-	Server.ListenAndServe()
+	err := server.ListenAndServe()
+	if err != nil {
+		fmt.Println(err)
+	}
 }

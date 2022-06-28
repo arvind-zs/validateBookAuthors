@@ -1,4 +1,4 @@
-package AuthorArvind
+package main
 
 import (
 	"bytes"
@@ -19,12 +19,16 @@ func TestGetBookAllDetails(t *testing.T) {
 		expStatus int
 	}{
 		{"get all books", "/book", []Book{
-			{1, "Arvind", Author{Id: 1}, "Pengiun", "11/03/2002"},
+			{2, "Arvind", Author{Id: 3}, "Pengiun", "11/03/2002"},
+			{3, "Godan", Author{Id: 4}, "Pengiun", "11/03/2001"},
 		}, http.StatusOK},
 		{"get all books with query param", "/book?title=Arvind", []Book{
-			{1, "Arvind", Author{Id: 1}, "Pengiun", "11/03/2002"}}, http.StatusOK},
-		{"get all books with query param", "/book?includeAuthor=true", []Book{
-			{1, "Arvind", Author{1, "RD", "Sharma", "2/11/1989", "Sharma"}, "Pengiun", "11/03/2002"}}, http.StatusOK},
+			{2, "Arvind", Author{Id: 3}, "Pengiun", "11/03/2002"}}, http.StatusOK},
+		/*
+			{"get all books with query param", "/book?includeAuthor=true", []Book{
+				{2, "Arvind", Author{3, "RD", "Sharma", "2/11/1989", "Sharma"}, "Pengiun", "11/03/2002"}}, http.StatusOK},
+
+		*/
 	}
 	for j, tc := range testcases {
 		w := httptest.NewRecorder()
@@ -56,14 +60,14 @@ func TestGetBookAllDetails(t *testing.T) {
 	}
 }
 
-func TestGetParticularIdBooksById(t *testing.T) {
+func TestGetBooksById(t *testing.T) {
 	testcases := []struct {
 		desc      string
 		req       string
 		expRes    Book
 		expStatus int
 	}{
-		{"get book", "1", Book{1, "Arvind", Author{1, "RD", "Sharma", "2/11/1989", "Sharma"}, "Pengiun", "11/03/2002"}, http.StatusOK},
+		{"get book", "2", Book{2, "Arvind", Author{3, "RD", "Sharma", "2/11/1989", "Sharma"}, "Pengiun", "11/03/2002"}, http.StatusOK},
 		{"Id doesn't exist", "1000", Book{}, http.StatusNotFound},
 		{"Invalid Id", "abc", Book{}, http.StatusBadRequest},
 	}
@@ -103,7 +107,7 @@ func TestPostBookInformation(t *testing.T) {
 		expRes    Book
 		expStatus int
 	}{
-		{"Valid Details", Book{Title: "Arvind", Author: Author{Id: 1}, Publication: "Pengiun", PublishedDate: "11/03/2002"}, Book{1, "Arvind", Author{Id: 1}, "Pengiun", "11/03/2002"}, 200},
+		{"Valid Details", Book{Title: "Arvind", Author: Author{Id: 3}, Publication: "Pengiun", PublishedDate: "11/03/2002"}, Book{3, "Arvind", Author{Id: 3}, "Pengiun", "11/03/2002"}, 200},
 		{"Publication should be Scholastic/Pengiun/Arihanth", Book{Title: "Arvind", Author: Author{Id: 1}, Publication: "Arvind", PublishedDate: "11/03/2002"}, Book{}, http.StatusBadRequest},
 		{"Published date should be between 1880 and 2022", Book{Title: "", Author: Author{Id: 1}, Publication: "", PublishedDate: "1/1/1870"}, Book{}, http.StatusBadRequest},
 		{"Published date should be between 1880 and 2022", Book{Title: "", Author: Author{Id: 1}, Publication: "", PublishedDate: "1/1/2222"}, Book{}, http.StatusBadRequest},
@@ -137,7 +141,7 @@ func TestPostAuthorInformation(t *testing.T) {
 		expRes    Author
 		expStatus int
 	}{
-		{"Valid details", Author{FirstName: "RD", LastName: "Sharma", Dob: "2/11/1989", PenName: "Sharma"}, Author{1, "RD", "Sharma", "2/11/1989", "Sharma"}, http.StatusOK},
+		{"Valid details", Author{FirstName: "MS", LastName: "Sharma", Dob: "2/11/1989", PenName: "Sharma"}, Author{5, "MS", "Sharma", "2/11/1989", "Sharma"}, http.StatusOK},
 		{"InValid details", Author{FirstName: "", LastName: "Sharma", Dob: "2/11/1989", PenName: "Sharma"}, Author{}, http.StatusBadRequest},
 		{"Author already exists", Author{FirstName: "RD", LastName: "Sharma", Dob: "2/11/1989", PenName: "Sharma"}, Author{}, http.StatusBadRequest},
 	}
@@ -160,7 +164,7 @@ func TestPostAuthorInformation(t *testing.T) {
 	}
 }
 
-func TestPutBook(t *testing.T) {
+func TestPutBookInformation(t *testing.T) {
 	testcases := []struct {
 		desc      string
 		reqId     string

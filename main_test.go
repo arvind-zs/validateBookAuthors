@@ -169,61 +169,61 @@ func TestPutBookInformation(t *testing.T) {
 		desc      string
 		reqId     string
 		reqBody   Book
-		expRes    Book
 		expStatus int
 	}{
-		{"Valid Details", "1", Book{Title: "Arvind", Author: Author{Id: 1}, Publication: "Pengiun", PublishedDate: "11/03/2002"}, Book{}, 200},
-		{"Publication should be Scholastic/Pengiun/Arihanth", "1", Book{Title: "Arvind", Author: Author{Id: 1}, Publication: "Arvind", PublishedDate: "11/03/2002"}, Book{}, http.StatusBadRequest},
-		{"Published date should be between 1880 and 2022", "1", Book{Title: "", Author: Author{Id: 1}, Publication: "", PublishedDate: "1/1/1870"}, Book{}, http.StatusBadRequest},
-		{"Published date should be between 1880 and 2022", "1", Book{Title: "", Author: Author{Id: 1}, Publication: "", PublishedDate: "1/1/2222"}, Book{}, http.StatusBadRequest},
-		{"Author should exist", "1", Book{}, Book{}, http.StatusBadRequest},
-		{"Title can't be empty", "1", Book{Title: "", Author: Author{Id: 1}, Publication: "", PublishedDate: ""}, Book{}, http.StatusBadRequest},
+		{"valid case id exist", "2", Book{2, "title", Author{Id: 3},
+			"Arihanth", "18/08/2018"}, http.StatusOK},
+		{"invalid case id not exist", "1005", Book{1000, "title1", Author{Id: 9},
+			"Arihanth", "18/08/2018"}, http.StatusBadRequest},
+		{"Invalid book name.", "1", Book{1, "", Author{Id: 1},
+			"Godan", "21/03/1986"}, http.StatusBadRequest},
+		{"Invalid author.", "1", Book{1, "title3", Author{Id: 2},
+			"Oxford", "21/05/1984"}, http.StatusBadRequest},
 	}
-	for i, tc := range testcases {
-		w := httptest.NewRecorder()
-		body, _ := json.Marshal(tc.reqBody)
-		req := httptest.NewRequest(http.MethodPost, "localhost:8000/book/"+tc.reqId, bytes.NewReader(body))
-		putBook(w, req)
-		defer w.Result().Body.Close()
 
-		if w.Result().StatusCode != tc.expStatus {
-			t.Errorf("%v test failed %v", i, tc.desc)
+	for i, tc := range testcases {
+		body, err := json.Marshal(tc.reqBody)
+		if err != nil {
+			t.Errorf("can not convert data into []byte")
 		}
-		res, _ := io.ReadAll(w.Result().Body)
-		resBook := Book{}
-		json.Unmarshal(res, &resBook)
-		if resBook != tc.expRes {
-			t.Errorf("%v test failed %v", i, tc.desc)
+		req := httptest.NewRequest(http.MethodPut, "http://localhost:8000/book/{id}", bytes.NewBuffer(body))
+		res := httptest.NewRecorder()
+		req = mux.SetURLVars(req, map[string]string{"id": tc.reqId})
+		putBook(res, req)
+		if res.Result().StatusCode != tc.expStatus {
+			t.Errorf("test cases fail at %d", i)
 		}
+
 	}
 }
 
 func TestPutAuthor(t *testing.T) {
+
 	testcases := []struct {
 		desc      string
-		reqBody   Author
-		expRes    Author
+		reqId     string
+		reqData   Author
 		expStatus int
 	}{
-		{"Valid details", Author{FirstName: "RD", LastName: "Sharma", Dob: "2/11/1989", PenName: "Sharma"}, Author{1, "RD", "Sharma", "2/11/1989", "Sharma"}, http.StatusOK},
-		{"InValid details", Author{FirstName: "", LastName: "Sharma", Dob: "2/11/1989", PenName: "Sharma"}, Author{}, http.StatusBadRequest},
-	}
-	for i, tc := range testcases {
-		w := httptest.NewRecorder()
-		body, _ := json.Marshal(tc.reqBody)
-		req := httptest.NewRequest(http.MethodPost, "localhost:8000/author", bytes.NewReader(body))
-		putAuthor(w, req)
-		defer w.Result().Body.Close()
+		{"Valid case update firstname.", "3", Author{3, "Rohan", "gupta", "01/07/2001", "GCC"}, http.StatusOK},
 
-		if w.Result().StatusCode != tc.expStatus {
-			t.Errorf("%v test failed %v", i, tc.desc)
+		{"Valid case id not present.", "1000", Author{1000, "Mohan", "chandra", "01/07/2001", "GCC"}, http.StatusBadRequest},
+	}
+
+	for i, tc := range testcases {
+
+		body, err := json.Marshal(tc.reqData)
+		if err != nil {
+			t.Errorf("can not convert data into []byte")
 		}
-		res, _ := io.ReadAll(w.Result().Body)
-		resAuthor := Author{}
-		json.Unmarshal(res, &resAuthor)
-		if resAuthor != tc.expRes {
-			t.Errorf("%v test failed %v", i, tc.desc)
+		req := httptest.NewRequest(http.MethodPut, "http://localhost:8000/author/{id}", bytes.NewReader(body))
+		res := httptest.NewRecorder()
+		req = mux.SetURLVars(req, map[string]string{"id": tc.reqId})
+		putAuthor(res, req)
+		if res.Result().StatusCode != tc.expStatus {
+			t.Errorf("%v test cases fail at %v", i, tc.desc)
 		}
+
 	}
 }
 

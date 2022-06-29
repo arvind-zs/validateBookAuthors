@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -202,11 +203,117 @@ func postAuthor(response http.ResponseWriter, request *http.Request) {
 }
 
 func putAuthor(response http.ResponseWriter, request *http.Request) {
+	db := databaseConnection()
+	var author Author
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	err = json.Unmarshal(body, &author)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	if author.FirstName == "" || author.LastName == "" || author.PenName == "" || author.Dob == "" {
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
+	params := mux.Vars(request)
+	ID, err := strconv.Atoi(params["id"])
+	if ID <= 0 {
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	res, err := db.Query("SELECT id FROM Authors WHERE id = ?", ID)
+	if err != nil {
+		log.Print(err)
+	}
+	if !res.Next() {
+		log.Print("id not present")
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var id int
+	err = res.Scan(&id)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	_, err = db.Exec("UPDATE Authors SET first_name = ? ,last_name = ? ,dob = ? ,pen_name = ?  WHERE id =?", author.FirstName, author.LastName, author.Dob, author.PenName, ID)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	response.WriteHeader(http.StatusOK)
 }
 
 func putBook(response http.ResponseWriter, request *http.Request) {
+	db := databaseConnection()
+	var book Book
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(body, &book)
+	if err != nil {
+		return
+	}
+	if book.Title == "" {
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !(book.Publication == "Penguin" || book.Publication == "Scholastic" || book.Publication == "Arihanth") {
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
+	publicationDate := strings.Split(book.PublishedDate, "/")
+	if len(publicationDate) < 3 {
+		return
+	}
+	yr, _ := strconv.Atoi(publicationDate[2])
+	if yr > time.Now().Year() || yr < 1880 {
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	params := mux.Vars(request)
+	ID, err := strconv.Atoi(params["id"])
+	if ID <= 0 {
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result, err := db.Query("SELECT id FROM Authors WHERE id = ?", book.Author.Id)
+	if err != nil {
+		log.Print(err)
+	}
+
+	if !result.Next() {
+		log.Print("author not present", book.Author.Id)
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result, err = db.Query("SELECT * FROM Books WHERE id = ?", book.Id)
+	if err != nil {
+		log.Print(err)
+	}
+	if !result.Next() {
+		log.Print("Book not present")
+		response.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result, err = db.Query("UPDATE Books SET title = ? ,publication = ? ,published_date = ?,author_id=?  WHERE id =?", book.Title, book.Publication, book.PublishedDate, book.Author.Id, ID)
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 func deleteAuthor(response http.ResponseWriter, request *http.Request) {
@@ -253,27 +360,27 @@ func deleteBook(response http.ResponseWriter, request *http.Request) {
 
 func main() {
 
-	r := mux.NewRouter()
+	rout := mux.NewRouter()
 
-	r.HandleFunc("/book", getBook).Methods(http.MethodGet)
+	rout.HandleFunc("/book", getBook).Methods(http.MethodGet)
 
-	r.HandleFunc("/book/{id}", getBookById).Methods(http.MethodGet)
+	rout.HandleFunc("/book/{id}", getBookById).Methods(http.MethodGet)
 
-	r.HandleFunc("/book", postBook).Methods(http.MethodPost)
+	rout.HandleFunc("/book", postBook).Methods(http.MethodPost)
 
-	r.HandleFunc("/author", postAuthor).Methods(http.MethodPost)
+	rout.HandleFunc("/author", postAuthor).Methods(http.MethodPost)
 
-	r.HandleFunc("/book/{id}", putBook).Methods(http.MethodPut)
+	rout.HandleFunc("/book/{id}", putBook).Methods(http.MethodPut)
 
-	r.HandleFunc("/author/{id}", putAuthor).Methods(http.MethodPut)
+	rout.HandleFunc("/author/{id}", putAuthor).Methods(http.MethodPut)
 
-	r.HandleFunc("/book/{id}", deleteBook).Methods(http.MethodDelete)
+	rout.HandleFunc("/book/{id}", deleteBook).Methods(http.MethodDelete)
 
-	r.HandleFunc("/author/{id}", deleteAuthor).Methods(http.MethodDelete)
+	rout.HandleFunc("/author/{id}", deleteAuthor).Methods(http.MethodDelete)
 
 	server := http.Server{
 		Addr:    ":8000",
-		Handler: r,
+		Handler: rout,
 	}
 
 	fmt.Println("Server started at 8000")
